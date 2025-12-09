@@ -12,7 +12,7 @@ def get_db_connection():
         print(f"Error connecting to database: {e}")
         return None
 
-def get_all_apps(limit=20, offset=0):
+def get_all_apps(limit=20, offset=0, max_price=None):
     conn = get_db_connection()
     if not conn:
         return None
@@ -20,12 +20,19 @@ def get_all_apps(limit=20, offset=0):
     try:
         # Join with app_page to get description/images if needed for card, but basic info is in 'app'
         # Sub-select first tag as category
-        query = """
-            SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category 
-            FROM app a 
-            LIMIT ? OFFSET ?
-        """
-        apps = conn.execute(query, (limit, offset)).fetchall()
+        
+        query_parts = ["SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category FROM app a"]
+        params = []
+        
+        if max_price is not None:
+             query_parts.append("WHERE price <= ?")
+             params.append(max_price)
+             
+        query_parts.append("LIMIT ? OFFSET ?")
+        params.extend([limit, offset])
+        
+        query = " ".join(query_parts)
+        apps = conn.execute(query, params).fetchall()
         
         # Convert to list of dicts
         result = [dict(row) for row in apps]
@@ -36,24 +43,29 @@ def get_all_apps(limit=20, offset=0):
     finally:
         conn.close()
 
-def get_apps_by_category(category_tag, limit=20, offset=0):
+def get_apps_by_category(category_tag, limit=20, offset=0, max_price=None):
     conn = get_db_connection()
     if not conn:
         return None
     
     try:
         # Join app with app_tags to filter
-        # Also select category (which is the tag we filtered by, but for consistency we can subselect or just use the param)
-        # Using subselect to get the *primary* tag if there are multiple, or just the one we filtered by.
-        # Let's stick to the same pattern: subselect first tag.
-        query = """
+        base_query = """
             SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category
             FROM app a
             JOIN app_tags at ON a.app_id = at.app_id
             WHERE at.tag_id = ?
-            LIMIT ? OFFSET ?
         """
-        apps = conn.execute(query, (category_tag, limit, offset)).fetchall()
+        params = [category_tag]
+        
+        if max_price is not None:
+            base_query += " AND price <= ?"
+            params.append(max_price)
+            
+        base_query += " LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        apps = conn.execute(base_query, params).fetchall()
         return [dict(row) for row in apps]
     except sqlite3.Error as e:
         print(f"Error fetching apps by category: {e}")
@@ -120,7 +132,7 @@ def get_app_details(app_id):
     finally:
         conn.close()
 
-def search_apps(query_string, category_tag=None):
+def search_apps(query_string, category_tag=None, max_price=None):
     conn = get_db_connection()
     if not conn:
         return None
@@ -133,14 +145,18 @@ def search_apps(query_string, category_tag=None):
                 JOIN app_tags at ON a.app_id = at.app_id
                 WHERE a.app_name LIKE ? AND at.tag_id = ?
             """
-             params = (f'%{query_string}%', category_tag)
+             params = [f'%{query_string}%', category_tag]
         else:
             sql = """
                 SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category
                 FROM app a
                 WHERE a.app_name LIKE ?
             """
-            params = (f'%{query_string}%',)
+            params = [f'%{query_string}%']
+            
+        if max_price is not None:
+            sql += " AND price <= ?"
+            params.append(max_price)
 
         apps = conn.execute(sql, params).fetchall()
         return [dict(row) for row in apps]
