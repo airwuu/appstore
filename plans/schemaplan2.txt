@@ -1,0 +1,103 @@
+// Use DBML to define your database structure
+// Copy this into https://dbdiagram.io/d
+
+Table user {
+user_id integer [primary key, increment]
+username text
+creation_date timestamp [default: CURRENT_TIMESTAMP]
+comment_ids text [note: 'JSON Array Cache']
+app_ids text [note: 'JSON Array Cache']
+}
+
+Table app {
+app_id integer [primary key, increment]
+app_name text
+icon text
+price float [default: 0.0]
+rating float [default: 0.0]
+downloads integer [default: 0]
+}
+
+Table user_apps {
+app_id integer
+user_id integer
+
+indexes {
+(app_id, user_id) [pk] // Composite Primary Key
+}
+}
+
+Table comments {
+comment_id integer [primary key, increment]
+app_id integer
+user_id integer
+stars float
+comment text
+date timestamp [default: CURRENT_TIMESTAMP]
+}
+
+Table app_page {
+app_id integer [primary key]
+description text
+images text [note: 'JSON Array']
+last_update timestamp
+comment_ids text [note: 'JSON Array Cache']
+}
+
+Table tags {
+tag_id text [primary key]
+amount integer [default: 0]
+similar_tag_ids text [note: 'JSON Array']
+}
+
+Table app_tags {
+app_id integer
+tag_id text
+
+indexes {
+(app_id, tag_id) [pk] // Composite Primary Key
+}
+}
+
+Table reports {
+report_id integer [primary key, increment]
+reported_app_id integer
+reported_user_id integer
+comment text
+created_at timestamp [default: CURRENT_TIMESTAMP]
+}
+
+Table user_reports {
+user_id integer [primary key]
+report_ids text [note: 'JSON Array Cache']
+}
+
+Table app_reports {
+app_id integer [primary key]
+report_ids text [note: 'JSON Array Cache']
+}
+
+// --- Relationships ---
+
+// User <-> Apps (Many-to-Many via user_apps)
+Ref: user_apps.app_id > app.app_id [delete: cascade]
+Ref: user_apps.user_id > user.user_id [delete: cascade]
+
+// Comments
+Ref: comments.app_id > app.app_id [delete: cascade]
+Ref: comments.user_id > user.user_id [delete: cascade]
+
+// App Page (1-to-1)
+Ref: app_page.app_id - app.app_id [delete: cascade]
+
+// App <-> Tags (Many-to-Many via app_tags)
+Ref: app_tags.app_id > app.app_id [delete: cascade]
+Ref: app_tags.tag_id > tags.tag_id [delete: cascade]
+
+// Reports (Optional relationships)
+Ref: reports.reported_app_id > app.app_id [delete: set null]
+Ref: reports.reported_user_id > user.user_id [delete: set null]
+
+// Report Caches (1-to-1 link to the entity)
+Ref: user_reports.user_id - user.user_id [delete: cascade]
+Ref: app_reports.app_id - app.app_id [delete: cascade]
