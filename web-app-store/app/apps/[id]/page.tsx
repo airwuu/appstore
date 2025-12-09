@@ -1,6 +1,8 @@
 import { AppDetails } from '@/utils/types';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import DownloadButton from '@/components/AppActions';
+import ReviewSection from '@/components/ReviewSection';
 
 async function getAppDetails(id: string): Promise<AppDetails | null> {
     const res = await fetch(`http://localhost:5000/api/apps/${id}`, { cache: 'no-store' });
@@ -31,14 +33,7 @@ export default async function AppDetailsPage({ params }: { params: Promise<{ id:
                     <h1 className="text-3xl font-bold mb-1">{app.app_name}</h1>
                     <p className="text-gray-500 text-lg mb-4">Essential utility for your life</p>
 
-                    <div className="flex items-center gap-4 mb-6">
-                        <button className="bg-blue-600 text-white rounded-full px-8 py-2 font-bold hover:bg-blue-700 transition-colors">
-                            {app.price === 0 ? 'Get' : `$${app.price}`}
-                        </button>
-                        <div className="text-gray-400 text-sm font-medium">
-                            In-App Purchases
-                        </div>
-                    </div>
+                    <DownloadButton app={app} />
                 </div>
             </div>
 
@@ -73,7 +68,7 @@ export default async function AppDetailsPage({ params }: { params: Promise<{ id:
 
             {/* Comments */}
             <div>
-                <h2 className="text-2xl font-bold mb-6">Reviews</h2>
+                <ReviewSection appId={app.app_id} />
                 <div className="space-y-6">
                     {app.comments && app.comments.length > 0 ? (
                         app.comments.map(c => (
