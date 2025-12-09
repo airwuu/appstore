@@ -55,10 +55,15 @@ def get_app_details(app_id):
 @app.route('/api/search', methods=['GET'])
 def search_apps():
     query = request.args.get('q', '')
-    if not query:
-        return jsonify([])
-        
-    results = db_utils.search_apps(query)
+    category = request.args.get('category')
+    
+    # If no query but category exists, we might want to just list apps by category, 
+    # but this endpoint is typically for text search.
+    # However, for "scoped search", query might be empty if user just clicks a tag?
+    # No, the user logic in frontend handles empty query by calling /api/apps.
+    # But if they type in search bar AND select a tag, they call this.
+    
+    results = db_utils.search_apps(query, category)
     if results is None:
          return jsonify({"error": "Database error"}), 500
          

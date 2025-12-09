@@ -120,14 +120,29 @@ def get_app_details(app_id):
     finally:
         conn.close()
 
-def search_apps(query_string):
+def search_apps(query_string, category_tag=None):
     conn = get_db_connection()
     if not conn:
         return None
     
     try:
-        sql = "SELECT * FROM app WHERE app_name LIKE ?"
-        apps = conn.execute(sql, (f'%{query_string}%',)).fetchall()
+        if category_tag:
+             sql = """
+                SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category
+                FROM app a
+                JOIN app_tags at ON a.app_id = at.app_id
+                WHERE a.app_name LIKE ? AND at.tag_id = ?
+            """
+             params = (f'%{query_string}%', category_tag)
+        else:
+            sql = """
+                SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category
+                FROM app a
+                WHERE a.app_name LIKE ?
+            """
+            params = (f'%{query_string}%',)
+
+        apps = conn.execute(sql, params).fetchall()
         return [dict(row) for row in apps]
     except sqlite3.Error as e:
         print(f"Error searching apps: {e}")
