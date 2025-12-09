@@ -172,6 +172,29 @@ def record_download(app_id, user_id):
     finally:
         conn.close()
 
+def remove_download(app_id, user_id):
+    conn = get_db_connection()
+    if not conn:
+        return False
+    
+    try:
+        # 1. Delete from user_apps
+        conn.execute("DELETE FROM user_apps WHERE app_id = ? AND user_id = ?", (app_id, user_id))
+
+        # 3. Update user.app_ids cache
+        cursor = conn.cursor()
+        cursor.execute("SELECT app_id FROM user_apps WHERE user_id = ?", (user_id,))
+        app_ids = [row[0] for row in cursor.fetchall()]
+        conn.execute("UPDATE user SET app_ids = ? WHERE user_id = ?", (json.dumps(app_ids), user_id))
+
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Error removing download: {e}")
+        return False
+    finally:
+        conn.close()
+
 def add_comment(app_id, user_id, stars, comment_text):
     conn = get_db_connection()
     if not conn:

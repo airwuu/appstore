@@ -6,9 +6,10 @@ import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 
 export default function DownloadButton({ app }: { app: AppDetails }) {
-    const { user, installApp } = useUser();
-    const router = useRouter(); // To refresh page after updates
+    const { user, installApp, uninstallApp } = useUser();
+    const router = useRouter();
     const [downloading, setDownloading] = useState(false);
+    const [uninstalling, setUninstalling] = useState(false);
 
     const isInstalled = user?.app_ids?.includes(app.app_id) || false;
 
@@ -19,7 +20,6 @@ export default function DownloadButton({ app }: { app: AppDetails }) {
         }
 
         setDownloading(true);
-        // Simulate network delay for effect
         setTimeout(async () => {
             try {
                 const res = await fetch(`http://localhost:5000/api/apps/${app.app_id}/download`, {
@@ -30,7 +30,7 @@ export default function DownloadButton({ app }: { app: AppDetails }) {
 
                 if (res.ok) {
                     installApp(app.app_id);
-                    router.refresh(); // Refresh to update download count
+                    router.refresh();
                 } else {
                     alert("Download failed.");
                 }
@@ -43,11 +43,36 @@ export default function DownloadButton({ app }: { app: AppDetails }) {
         }, 1500);
     };
 
+    const handleUninstall = async () => {
+        if (!user || !confirm("Uninstall this app?")) return;
+
+        setUninstalling(true);
+        try {
+            const res = await fetch(`http://localhost:5000/api/apps/${app.app_id}/download`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.user_id })
+            });
+
+            if (res.ok) {
+                uninstallApp(app.app_id);
+                router.refresh();
+            } else {
+                alert("Uninstall failed.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error uninstalling app.");
+        } finally {
+            setUninstalling(false);
+        }
+    };
+
     return (
         <div className="flex items-center gap-4 mb-2">
             <button
                 onClick={handleDownload}
-                disabled={downloading || isInstalled}
+                disabled={downloading || isInstalled || uninstalling}
                 className={`
                     rounded-full px-8 py-2 font-bold transition-all duration-300 min-w-[120px]
                     ${isInstalled
@@ -58,8 +83,17 @@ export default function DownloadButton({ app }: { app: AppDetails }) {
             >
                 {downloading ? "..." : isInstalled ? "Open" : (app.price === 0 ? 'Get' : `$${app.price}`)}
             </button>
-            <div className="text-gray-400 text-sm font-medium">
-                {isInstalled ? "Installed" : "In-App Purchases"}
+            <div className="text-gray-400 text-sm font-medium flex items-center gap-4">
+                <span>{isInstalled ? "Installed" : "In-App Purchases"}</span>
+                {isInstalled && (
+                    <button
+                        onClick={handleUninstall}
+                        disabled={uninstalling}
+                        className="text-red-500 hover:text-red-700 hover:underline text-xs"
+                    >
+                        {uninstalling ? "Uninstalling..." : "Uninstall"}
+                    </button>
+                )}
             </div>
         </div>
     );

@@ -74,7 +74,7 @@ def get_users():
         return jsonify({"error": "Database error"}), 500
     return jsonify(users)
 
-@app.route('/api/apps/<int:app_id>/download', methods=['POST'])
+@app.route('/api/apps/<int:app_id>/download', methods=['POST', 'DELETE'])
 def download_app(app_id):
     data = request.json
     user_id = data.get('user_id')
@@ -82,13 +82,21 @@ def download_app(app_id):
     if not user_id:
         return jsonify({"error": "User ID required"}), 400
         
-    success = db_utils.record_download(app_id, user_id)
-    if not success:
-        return jsonify({"error": "Failed to record download"}), 500
-        
+    if request.method == 'POST':
+        success = db_utils.record_download(app_id, user_id)
+        if not success:
+            return jsonify({"error": "Failed to record download"}), 500
+        message = "Download recorded"
+    
+    elif request.method == 'DELETE':
+        success = db_utils.remove_download(app_id, user_id)
+        if not success:
+            return jsonify({"error": "Failed to remove download"}), 500
+        message = "App uninstalled"
+
     # Get updated app details to return new count
     app_data = db_utils.get_app_details(app_id)
-    return jsonify({"message": "Download recorded", "downloads": app_data['downloads']})
+    return jsonify({"message": message, "downloads": app_data['downloads']})
 
 @app.route('/api/apps/<int:app_id>/comments', methods=['POST'])
 def post_comment(app_id):

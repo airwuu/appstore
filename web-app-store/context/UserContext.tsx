@@ -14,6 +14,7 @@ interface UserContextType {
     login: (user: User) => void;
     logout: () => void;
     installApp: (appId: number) => void;
+    uninstallApp: (appId: number) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -51,8 +52,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('appstore_user', JSON.stringify(updatedUser));
     };
 
+    const uninstallApp = (appId: number) => {
+        if (!user) return;
+        const updatedUser = { ...user, app_ids: (user.app_ids || []).filter(id => id !== appId) };
+        setUser(updatedUser);
+        localStorage.setItem('appstore_user', JSON.stringify(updatedUser));
+    };
+
     return (
-        <UserContext.Provider value={{ user, login, logout, installApp }}>
+        <UserContext.Provider value={{ user, login, logout, installApp, uninstallApp }}>
             {children}
         </UserContext.Provider>
     );
