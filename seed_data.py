@@ -1,4 +1,5 @@
 import sqlite3
+import db_utils
 import json
 import random
 import string
@@ -81,82 +82,52 @@ def seed_database(num_users=10, num_apps=5):
         
         cursor.executemany("INSERT OR IGNORE INTO app_tags (app_id, tag_id) VALUES (?, ?)", app_tags_data)
 
-    # 4. Simulate Activity (Installs & Comments)
-    # Fetch ALL user IDs and App IDs to create random connections
+    # COMMIT basic data so db_utils can see it
+    conn.commit()
+    conn.close() 
+
+    # 4. Simulate Activity using db_utils (Handles caching & logic)
+    print(" - Simulating activity via db_utils...")
+
+    # Re-fetch IDs using new connections implicitly or just use what we have? 
+    # db_utils functions take IDs. We need valid IDs.
+    # We can use the IDs we just created, but we need ALL IDs if we want to mix with existing data.
+    # Let's fetch all IDs like before using a temp connection or db_utils?
+    # db_utils doesn't have "get_all_ids". Let's use sqlite briefly or trust the loop variables?
+    # The original script fetched ALL users/apps (including old ones). Let's stick to that.
+    
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
     cursor.execute("SELECT user_id FROM user")
     all_user_ids = [row[0] for row in cursor.fetchall()]
     
     cursor.execute("SELECT app_id FROM app")
     all_app_ids = [row[0] for row in cursor.fetchall()]
+    conn.close()
 
     if all_user_ids and all_app_ids:
         # Random Installs
-        installs = []
-        num_installs = len(all_user_ids) * 2 # Average 2 installs per user
-        
+        num_installs = len(all_user_ids) * 2
+        count_installs = 0
         for _ in range(num_installs):
             uid = random.choice(all_user_ids)
             aid = random.choice(all_app_ids)
-            installs.append((aid, uid))
-            
-        cursor.executemany("INSERT OR IGNORE INTO user_apps (app_id, user_id) VALUES (?, ?)", installs)
-        print(f" - Simulated {len(installs)} app installs.")
+            if db_utils.record_download(aid, uid):
+                count_installs += 1
+        print(f" - Recorded {count_installs} app downloads.")
 
         # Random Comments
-        comments = []
-        num_comments = int(len(all_user_ids) * 0.5) # 50% of users comment
-        
+        num_comments = int(len(all_user_ids) * 0.5)
+        count_comments = 0
         for _ in range(num_comments):
             uid = random.choice(all_user_ids)
             aid = random.choice(all_app_ids)
             stars = round(random.uniform(1.0, 5.0), 1)
             text = f"Review from {uid}: {random_string(15)}"
-            comments.append((aid, uid, stars, text))
-            
-        cursor.executemany("INSERT INTO comments (app_id, user_id, stars, comment) VALUES (?, ?, ?, ?)", comments)
-        print(f" - Added {len(comments)} new comments.")
+            if db_utils.add_comment(aid, uid, stars, text):
+                count_comments += 1
+        print(f" - Added {count_comments} comments.")
 
-    conn.commit()
-    conn.close()
-    
-    # 5. Run the Cache Updater
-    update_caches()
-
-def update_caches():
-    print("Updating JSON cache fields for entire database...")
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    # 1. Update user.app_ids
-    cursor.execute("SELECT user_id FROM user")
-    users = cursor.fetchall()
-    for (uid,) in users:
-        cursor.execute("SELECT app_id FROM user_apps WHERE user_id = ?", (uid,))
-        app_ids = [row[0] for row in cursor.fetchall()]
-        cursor.execute("UPDATE user SET app_ids = ? WHERE user_id = ?", (json.dumps(app_ids), uid))
-
-    # 2. Update user.comment_ids
-    for (uid,) in users:
-        cursor.execute("SELECT comment_id FROM comments WHERE user_id = ?", (uid,))
-        comment_ids = [row[0] for row in cursor.fetchall()]
-        cursor.execute("UPDATE user SET comment_ids = ? WHERE user_id = ?", (json.dumps(comment_ids), uid))
-
-    # 3. Update app_page.comment_ids & app.downloads
-    cursor.execute("SELECT app_id FROM app")
-    apps = cursor.fetchall()
-    for (aid,) in apps:
-        # Comments
-        cursor.execute("SELECT comment_id FROM comments WHERE app_id = ?", (aid,))
-        comment_ids = [row[0] for row in cursor.fetchall()]
-        cursor.execute("UPDATE app_page SET comment_ids = ? WHERE app_id = ?", (json.dumps(comment_ids), aid))
-        
-        # Downloads
-        cursor.execute("SELECT COUNT(*) FROM user_apps WHERE app_id = ?", (aid,))
-        count = cursor.fetchone()[0]
-        cursor.execute("UPDATE app SET downloads = ? WHERE app_id = ?", (count, aid))
-
-    conn.commit()
-    conn.close()
     print("Done!")
 
 if __name__ == "__main__":
