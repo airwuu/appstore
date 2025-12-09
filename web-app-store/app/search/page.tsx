@@ -18,6 +18,11 @@ function SearchContent() {
     const [maxPrice, setMaxPrice] = useState(10);
     const [isPriceOpen, setIsPriceOpen] = useState(false);
 
+    // Sort state
+    const [sortBy, setSortBy] = useState('downloads'); // Default sort
+    const [sortOrder, setSortOrder] = useState('desc'); // Default order
+    const [isSortOpen, setIsSortOpen] = useState(false);
+
     // Fetch categories on mount
     useEffect(() => {
         fetch('http://localhost:5000/api/categories')
@@ -32,13 +37,16 @@ function SearchContent() {
             setLoading(true);
             setApps([]);
             try {
-                let url = '';
                 // Logic:
-                // Base URLs + max_price param
+                // Base URLs + max_price + sort param
 
                 const params = new URLSearchParams();
                 params.set('max_price', maxPrice.toString());
                 params.set('limit', '50');
+                params.set('sort_by', sortBy);
+                params.set('sort_order', sortOrder);
+
+                let url = '';
 
                 if (initialQuery && categoryQuery) {
                     params.set('q', initialQuery);
@@ -51,13 +59,8 @@ function SearchContent() {
                     params.set('q', initialQuery);
                     url = `/api/search?${params.toString()}`;
                 } else {
-                    // Even with just price, we might want to show all apps filtered by price?
-                    // Original code showed nothing if no query/category.
-                    // Let's keep it consistent: show nothing if no search/category, unless we consider price filter enough of a "search".
-                    // But usually search page is for searching. 
-                    // Let's stick to existing logic: need query or category.
-                    setLoading(false);
-                    return;
+                    // Default view: fetch all apps (filtered by price/sort)
+                    url = `/api/apps?${params.toString()}`;
                 }
 
                 const res = await fetch(url);
@@ -72,10 +75,10 @@ function SearchContent() {
             }
         };
 
-        // Debounce fetching for slider
+        // Debounce fetching for slider and typing
         const timeoutId = setTimeout(fetchApps, 300);
         return () => clearTimeout(timeoutId);
-    }, [initialQuery, categoryQuery, maxPrice]);
+    }, [initialQuery, categoryQuery, maxPrice, sortBy, sortOrder]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -108,6 +111,19 @@ function SearchContent() {
         router.push(url);
     };
 
+    const handleSortChange = (by: string, order: string) => {
+        setSortBy(by);
+        setSortOrder(order);
+        setIsSortOpen(false);
+    };
+
+    const getSortLabel = () => {
+        if (sortBy === 'price') return sortOrder === 'asc' ? 'Price: Low to High' : 'Price: High to Low';
+        if (sortBy === 'rating') return sortOrder === 'desc' ? 'Rating: High to Low' : 'Rating: Low to High';
+        if (sortBy === 'downloads') return 'Most Popular';
+        return 'Sort';
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <h1 className="text-3xl font-bold mb-6">Search</h1>
@@ -131,7 +147,7 @@ function SearchContent() {
                 {/* Price Filter Dropdown */}
                 <div className="relative z-20 shrink-0">
                     <button
-                        onClick={() => setIsPriceOpen(!isPriceOpen)}
+                        onClick={() => { setIsPriceOpen(!isPriceOpen); setIsSortOpen(false); }}
                         className={`
                             flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border
                             ${maxPrice < 10
@@ -177,6 +193,63 @@ function SearchContent() {
                                     <span>Free</span>
                                     <span>$10+</span>
                                 </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Sort Dropdown */}
+                <div className="relative z-20 shrink-0">
+                    <button
+                        onClick={() => { setIsSortOpen(!isSortOpen); setIsPriceOpen(false); }}
+                        className={`
+                            flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border
+                            ${sortBy !== 'downloads'
+                                ? 'bg-gray-900 text-white border-gray-900'
+                                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                            }
+                        `}
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                        </svg>
+                        <span>{getSortLabel()}</span>
+                    </button>
+
+                    {isSortOpen && (
+                        <>
+                            <div className="fixed inset-0 z-0 bg-black/5" onClick={() => setIsSortOpen(false)} />
+                            <div className="absolute top-full left-0 mt-2 w-56 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 p-2 z-10 animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+                                <button
+                                    onClick={() => handleSortChange('downloads', 'desc')}
+                                    className={`text-left px-4 py-2 rounded-xl text-sm font-medium transition-colors ${sortBy === 'downloads' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                    Most Popular
+                                </button>
+                                <button
+                                    onClick={() => handleSortChange('price', 'asc')}
+                                    className={`text-left px-4 py-2 rounded-xl text-sm font-medium transition-colors ${sortBy === 'price' && sortOrder === 'asc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                    Price: Low to High
+                                </button>
+                                <button
+                                    onClick={() => handleSortChange('price', 'desc')}
+                                    className={`text-left px-4 py-2 rounded-xl text-sm font-medium transition-colors ${sortBy === 'price' && sortOrder === 'desc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                    Price: High to Low
+                                </button>
+                                <button
+                                    onClick={() => handleSortChange('rating', 'desc')}
+                                    className={`text-left px-4 py-2 rounded-xl text-sm font-medium transition-colors ${sortBy === 'rating' && sortOrder === 'desc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                    Rating: High to Low
+                                </button>
+                                <button
+                                    onClick={() => handleSortChange('rating', 'asc')}
+                                    className={`text-left px-4 py-2 rounded-xl text-sm font-medium transition-colors ${sortBy === 'rating' && sortOrder === 'asc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                    Rating: Low to High
+                                </button>
                             </div>
                         </>
                     )}

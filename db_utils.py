@@ -12,15 +12,12 @@ def get_db_connection():
         print(f"Error connecting to database: {e}")
         return None
 
-def get_all_apps(limit=20, offset=0, max_price=None):
+def get_all_apps(limit=20, offset=0, max_price=None, sort_by='downloads', sort_order='desc'):
     conn = get_db_connection()
     if not conn:
         return None
     
     try:
-        # Join with app_page to get description/images if needed for card, but basic info is in 'app'
-        # Sub-select first tag as category
-        
         query_parts = ["SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category FROM app a"]
         params = []
         
@@ -28,6 +25,15 @@ def get_all_apps(limit=20, offset=0, max_price=None):
              query_parts.append("WHERE price <= ?")
              params.append(max_price)
              
+        # Safe sorting
+        allowed_sorts = ['price', 'rating', 'downloads', 'app_name']
+        if sort_by not in allowed_sorts:
+            sort_by = 'downloads'
+        if sort_order.lower() not in ['asc', 'desc']:
+            sort_order = 'desc'
+            
+        query_parts.append(f"ORDER BY {sort_by} {sort_order}")
+        
         query_parts.append("LIMIT ? OFFSET ?")
         params.extend([limit, offset])
         
@@ -43,13 +49,12 @@ def get_all_apps(limit=20, offset=0, max_price=None):
     finally:
         conn.close()
 
-def get_apps_by_category(category_tag, limit=20, offset=0, max_price=None):
+def get_apps_by_category(category_tag, limit=20, offset=0, max_price=None, sort_by='downloads', sort_order='desc'):
     conn = get_db_connection()
     if not conn:
         return None
     
     try:
-        # Join app with app_tags to filter
         base_query = """
             SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category
             FROM app a
@@ -61,6 +66,15 @@ def get_apps_by_category(category_tag, limit=20, offset=0, max_price=None):
         if max_price is not None:
             base_query += " AND price <= ?"
             params.append(max_price)
+            
+        # Safe sorting
+        allowed_sorts = ['price', 'rating', 'downloads', 'app_name']
+        if sort_by not in allowed_sorts:
+            sort_by = 'downloads'
+        if sort_order.lower() not in ['asc', 'desc']:
+            sort_order = 'desc'
+            
+        base_query += f" ORDER BY {sort_by} {sort_order}"
             
         base_query += " LIMIT ? OFFSET ?"
         params.extend([limit, offset])
@@ -132,7 +146,7 @@ def get_app_details(app_id):
     finally:
         conn.close()
 
-def search_apps(query_string, category_tag=None, max_price=None):
+def search_apps(query_string, category_tag=None, max_price=None, sort_by='downloads', sort_order='desc'):
     conn = get_db_connection()
     if not conn:
         return None
@@ -157,6 +171,15 @@ def search_apps(query_string, category_tag=None, max_price=None):
         if max_price is not None:
             sql += " AND price <= ?"
             params.append(max_price)
+            
+        # Safe sorting
+        allowed_sorts = ['price', 'rating', 'downloads', 'app_name']
+        if sort_by not in allowed_sorts:
+            sort_by = 'downloads'
+        if sort_order.lower() not in ['asc', 'desc']:
+            sort_order = 'desc'
+            
+        sql += f" ORDER BY {sort_by} {sort_order}"
 
         apps = conn.execute(sql, params).fetchall()
         return [dict(row) for row in apps]

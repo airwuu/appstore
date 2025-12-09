@@ -34,11 +34,13 @@ def get_apps():
     offset = request.args.get('offset', default=0, type=int)
     category = request.args.get('category')
     max_price = request.args.get('max_price', type=float)
+    sort_by = request.args.get('sort_by', default='downloads')
+    sort_order = request.args.get('sort_order', default='desc')
     
     if category:
-        apps = db_utils.get_apps_by_category(category, limit, offset, max_price)
+        apps = db_utils.get_apps_by_category(category, limit, offset, max_price, sort_by, sort_order)
     else:
-        apps = db_utils.get_all_apps(limit, offset, max_price)
+        apps = db_utils.get_all_apps(limit, offset, max_price, sort_by, sort_order)
         
     if apps is None:
         return jsonify({"error": "Database error"}), 500
@@ -58,6 +60,8 @@ def search_apps():
     query = request.args.get('q', '')
     category = request.args.get('category')
     max_price = request.args.get('max_price', type=float)
+    sort_by = request.args.get('sort_by', default='downloads')
+    sort_order = request.args.get('sort_order', default='desc')
     
     # If no query but category exists, we might want to just list apps by category, 
     # but this endpoint is typically for text search.
@@ -65,7 +69,7 @@ def search_apps():
     # No, the user logic in frontend handles empty query by calling /api/apps.
     # But if they type in search bar AND select a tag, they call this.
     
-    results = db_utils.search_apps(query, category, max_price)
+    results = db_utils.search_apps(query, category, max_price, sort_by, sort_order)
     if results is None:
          return jsonify({"error": "Database error"}), 500
          
