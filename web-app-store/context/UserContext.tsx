@@ -6,12 +6,14 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 export interface User {
     user_id: number;
     username: string;
+    app_ids: number[];
 }
 
 interface UserContextType {
     user: User | null;
     login: (user: User) => void;
     logout: () => void;
+    installApp: (appId: number) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -42,8 +44,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('appstore_user');
     };
 
+    const installApp = (appId: number) => {
+        if (!user) return;
+        const updatedUser = { ...user, app_ids: [...(user.app_ids || []), appId] };
+        setUser(updatedUser);
+        localStorage.setItem('appstore_user', JSON.stringify(updatedUser));
+    };
+
     return (
-        <UserContext.Provider value={{ user, login, logout }}>
+        <UserContext.Provider value={{ user, login, logout, installApp }}>
             {children}
         </UserContext.Provider>
     );

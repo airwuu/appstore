@@ -6,10 +6,11 @@ import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 
 export default function DownloadButton({ app }: { app: AppDetails }) {
-    const { user } = useUser();
+    const { user, installApp } = useUser();
     const router = useRouter(); // To refresh page after updates
     const [downloading, setDownloading] = useState(false);
-    const [downloaded, setDownloaded] = useState(false);
+
+    const isInstalled = user?.app_ids?.includes(app.app_id) || false;
 
     const handleDownload = async () => {
         if (!user) {
@@ -28,7 +29,7 @@ export default function DownloadButton({ app }: { app: AppDetails }) {
                 });
 
                 if (res.ok) {
-                    setDownloaded(true);
+                    installApp(app.app_id);
                     router.refresh(); // Refresh to update download count
                 } else {
                     alert("Download failed.");
@@ -46,19 +47,19 @@ export default function DownloadButton({ app }: { app: AppDetails }) {
         <div className="flex items-center gap-4 mb-2">
             <button
                 onClick={handleDownload}
-                disabled={downloading || downloaded}
+                disabled={downloading || isInstalled}
                 className={`
                     rounded-full px-8 py-2 font-bold transition-all duration-300 min-w-[120px]
-                    ${downloaded
+                    ${isInstalled
                         ? 'bg-gray-200 text-gray-500 cursor-default'
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     }
                 `}
             >
-                {downloading ? "..." : downloaded ? "Open" : (app.price === 0 ? 'Get' : `$${app.price}`)}
+                {downloading ? "..." : isInstalled ? "Open" : (app.price === 0 ? 'Get' : `$${app.price}`)}
             </button>
             <div className="text-gray-400 text-sm font-medium">
-                {downloaded ? "Installed" : "In-App Purchases"}
+                {isInstalled ? "Installed" : "In-App Purchases"}
             </div>
         </div>
     );

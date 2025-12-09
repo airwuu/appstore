@@ -126,8 +126,16 @@ def get_all_users():
     if not conn:
         return None
     try:
-        users = conn.execute("SELECT user_id, username FROM user ORDER BY username").fetchall()
-        return [dict(row) for row in users]
+        users = conn.execute("SELECT user_id, username, app_ids FROM user ORDER BY username").fetchall()
+        result = []
+        for row in users:
+            u = dict(row)
+            try:
+                u['app_ids'] = json.loads(u['app_ids']) if u['app_ids'] else []
+            except json.JSONDecodeError:
+                u['app_ids'] = []
+            result.append(u)
+        return result
     except sqlite3.Error as e:
         print(f"Error fetching users: {e}")
         return None
