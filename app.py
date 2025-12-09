@@ -5,6 +5,20 @@ import db_utils
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Next.js development
 
+@app.route('/')
+def index():
+    return jsonify({
+        "status": "online",
+        "message": "Welcome to the App Store API",
+        "endpoints": [
+            "/health",
+            "/api/apps",
+            "/api/apps/<id>",
+            "/api/search?q=<query>",
+            "/api/categories"
+        ]
+    })
+
 @app.route('/health')
 def health_check():
     conn = db_utils.get_db_connection()
@@ -52,6 +66,45 @@ def get_categories():
         return jsonify({"error": "Database error"}), 500
         
     return jsonify(categories)
+
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    users = db_utils.get_all_users()
+    if users is None:
+        return jsonify({"error": "Database error"}), 500
+    return jsonify(users)
+
+@app.route('/api/apps/<int:app_id>/download', methods=['POST'])
+def download_app(app_id):
+    data = request.json
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({"error": "User ID required"}), 400
+        
+    success = db_utils.record_download(app_id, user_id)
+    if not success:
+        return jsonify({"error": "Failed to record download"}), 500
+        
+    # Get updated app details to return new count
+    app_data = db_utils.get_app_details(app_id)
+    return jsonify({"message": "Download recorded", "downloads": app_data['downloads']})
+
+@app.route('/api/apps/<int:app_id>/comments', methods=['POST'])
+def post_comment(app_id):
+    data = request.json
+    user_id = data.get('user_id')
+    stars = data.get('stars')
+    comment = data.get('comment')
+    
+    if not all([user_id, stars, comment]):
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    comment_id = db_utils.add_comment(app_id, user_id, stars, comment)
+    if not comment_id:
+        return jsonify({"error": "Failed to add comment"}), 500
+        
+    return jsonify({"message": "Comment added", "comment_id": comment_id})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
