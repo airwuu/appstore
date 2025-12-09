@@ -203,3 +203,65 @@ def add_comment(app_id, user_id, stars, comment_text):
         return None
     finally:
         conn.close()
+
+def update_comment(comment_id, user_id, stars, comment_text):
+    conn = get_db_connection()
+    if not conn:
+        return False
+    
+    try:
+        cursor = conn.cursor()
+        # Verify ownership
+        cursor.execute("SELECT user_id FROM comments WHERE comment_id = ?", (comment_id,))
+        row = cursor.fetchone()
+        if not row or row['user_id'] != user_id:
+            return False # Not found or not owner
+
+        cursor.execute(
+            "UPDATE comments SET stars = ?, comment = ? WHERE comment_id = ?",
+            (stars, comment_text, comment_id)
+        )
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Error updating comment: {e}")
+        return False
+    finally:
+        conn.close()
+
+def delete_comment(comment_id, user_id):
+    conn = get_db_connection()
+    if not conn:
+        return False
+    
+    try:
+        cursor = conn.cursor()
+        # Verify ownership and get app_id for cache update
+        cursor.execute("SELECT user_id, app_id FROM comments WHERE comment_id = ?", (comment_id,))
+        row = cursor.fetchone()
+        if not row or row['user_id'] != user_id:
+            return False
+            
+        app_id = row['app_id']
+
+        # Delete
+        cursor.execute("DELETE FROM comments WHERE comment_id = ?", (comment_id,))
+        
+        # Update caches (app_page and user)
+        # 1. App Page
+        cursor.execute("SELECT comment_id FROM comments WHERE app_id = ?", (app_id,))
+        app_comment_ids = [r[0] for r in cursor.fetchall()]
+        conn.execute("UPDATE app_page SET comment_ids = ? WHERE app_id = ?", (json.dumps(app_comment_ids), app_id))
+
+        # 2. User
+        cursor.execute("SELECT comment_id FROM comments WHERE user_id = ?", (user_id,))
+        user_comment_ids = [r[0] for r in cursor.fetchall()]
+        conn.execute("UPDATE user SET comment_ids = ? WHERE user_id = ?", (json.dumps(user_comment_ids), user_id))
+
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Error deleting comment: {e}")
+        return False
+    finally:
+        conn.close()

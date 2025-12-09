@@ -106,5 +106,35 @@ def post_comment(app_id):
         
     return jsonify({"message": "Comment added", "comment_id": comment_id})
 
+    return jsonify({"message": "Comment added", "comment_id": comment_id})
+
+@app.route('/api/comments/<int:comment_id>', methods=['PUT', 'DELETE'])
+def manage_comment(comment_id):
+    data = request.json
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({"error": "User ID required"}), 400
+
+    if request.method == 'PUT':
+        stars = data.get('stars')
+        comment = data.get('comment')
+        
+        if stars is None or comment is None:
+             return jsonify({"error": "Missing fields"}), 400
+             
+        success = db_utils.update_comment(comment_id, user_id, stars, comment)
+        if success:
+            return jsonify({"message": "Comment updated"})
+        else:
+            return jsonify({"error": "Failed to update comment"}), 403
+
+    elif request.method == 'DELETE':
+        success = db_utils.delete_comment(comment_id, user_id)
+        if success:
+             return jsonify({"message": "Comment deleted"})
+        else:
+             return jsonify({"error": "Failed to delete comment"}), 403
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import DownloadButton from '@/components/AppActions';
 import ReviewSection from '@/components/ReviewSection';
+import ReviewList from '@/components/ReviewList';
 
 async function getAppDetails(id: string): Promise<AppDetails | null> {
     const res = await fetch(`http://localhost:5000/api/apps/${id}`, { cache: 'no-store' });
@@ -69,25 +70,7 @@ export default async function AppDetailsPage({ params }: { params: Promise<{ id:
             {/* Comments */}
             <div>
                 <ReviewSection appId={app.app_id} />
-                <div className="space-y-6">
-                    {app.comments && app.comments.length > 0 ? (
-                        app.comments.map(c => (
-                            <div key={c.comment_id} className="bg-gray-100 rounded-xl p-5">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="font-bold">{c.username}</span>
-                                    <span className="text-sm text-gray-500">{new Date(c.date).toLocaleDateString()}</span>
-                                </div>
-                                <div className="flex text-amber-500 mb-2">
-                                    {"★".repeat(Math.round(c.stars))}
-                                    <span className="text-gray-300">{"★".repeat(5 - Math.round(c.stars))}</span>
-                                </div>
-                                <p className="text-gray-700">{c.comment}</p>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="text-gray-500">No reviews yet.</div>
-                    )}
-                </div>
+                <ReviewList initialComments={app.comments || []} />
             </div>
         </div>
     );
