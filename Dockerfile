@@ -12,10 +12,13 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip install --no-cache-dir pandas flask SQLAlchemy
+RUN pip install --no-cache-dir pandas flask SQLAlchemy flask-cors
 
 # Copy the current directory contents into the container at /app
 COPY . .
 
+# Expose port 5000
+EXPOSE 5000
+
 # Default command to run when starting the container
-CMD ["bash"]
+CMD ["python", "app.py"]
