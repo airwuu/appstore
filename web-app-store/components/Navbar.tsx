@@ -57,29 +57,36 @@ export default function Navbar() {
                             </button>
 
                             {isDropdownOpen && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5">
-                                    {users.map(u => (
-                                        <button
-                                            key={u.user_id}
-                                            onClick={() => handleLogin(u)}
-                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                        >
-                                            {u.username}
-                                        </button>
-                                    ))}
+                                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl py-1 ring-1 ring-black ring-opacity-5 overflow-hidden z-20">
+                                    <div className="max-h-64 overflow-y-auto">
+                                        <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b">
+                                            Select User
+                                        </div>
+                                        {users.map(u => (
+                                            <button
+                                                key={u.user_id}
+                                                onClick={() => handleLogin(u)}
+                                                className={`block w-full text-left px-4 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between
+                                                    ${user?.user_id === u.user_id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}
+                                                `}
+                                            >
+                                                <span>{u.username}</span>
+                                                {user?.user_id === u.user_id && <span className="text-blue-500">✓</span>}
+                                            </button>
+                                        ))}
+                                    </div>
                                     {user && (
-                                        <>
-                                            <hr className="my-1 border-gray-200" />
+                                        <div className="border-t border-gray-100 bg-gray-50 p-1">
                                             <button
                                                 onClick={() => {
                                                     logout();
                                                     setIsDropdownOpen(false);
                                                 }}
-                                                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                                                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
                                             >
                                                 Sign Out
                                             </button>
-                                        </>
+                                        </div>
                                     )}
                                 </div>
                             )}
