@@ -28,7 +28,9 @@ export default function AppCard({ app }: AppCardProps) {
                 </div>
                 <div className="flex-1 min-w-0 border-b border-gray-100 pb-2 group-hover:border-transparent">
                     <h3 className="text-base font-semibold text-gray-900 truncate">{app.app_name}</h3>
-                    <p className="text-xs text-gray-500 truncate">Utilities</p> {/* Placeholder category */}
+                    <p className="text-xs text-gray-500 truncate capitalize">
+                        {app.category || 'Other'}
+                    </p>
                     <div className="mt-1 flex items-center justify-between">
                         <div className="flex items-center">
                             <span className="text-gray-400 text-xs">★</span>

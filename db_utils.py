@@ -19,8 +19,12 @@ def get_all_apps(limit=20, offset=0):
     
     try:
         # Join with app_page to get description/images if needed for card, but basic info is in 'app'
-        # Let's return basic info for the list
-        query = "SELECT * FROM app LIMIT ? OFFSET ?"
+        # Sub-select first tag as category
+        query = """
+            SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category 
+            FROM app a 
+            LIMIT ? OFFSET ?
+        """
         apps = conn.execute(query, (limit, offset)).fetchall()
         
         # Convert to list of dicts
@@ -30,7 +34,6 @@ def get_all_apps(limit=20, offset=0):
         print(f"Error fetching apps: {e}")
         return None
     finally:
-
         conn.close()
 
 def get_apps_by_category(category_tag, limit=20, offset=0):
@@ -40,8 +43,11 @@ def get_apps_by_category(category_tag, limit=20, offset=0):
     
     try:
         # Join app with app_tags to filter
+        # Also select category (which is the tag we filtered by, but for consistency we can subselect or just use the param)
+        # Using subselect to get the *primary* tag if there are multiple, or just the one we filtered by.
+        # Let's stick to the same pattern: subselect first tag.
         query = """
-            SELECT a.* 
+            SELECT a.*, (SELECT tag_id FROM app_tags at WHERE at.app_id = a.app_id LIMIT 1) as category
             FROM app a
             JOIN app_tags at ON a.app_id = at.app_id
             WHERE at.tag_id = ?

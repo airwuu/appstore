@@ -5,6 +5,7 @@ export interface App {
     price: number;
     rating: number;
     downloads: number;
+    category?: string;
 }
 
 export interface AppDetails extends App {
