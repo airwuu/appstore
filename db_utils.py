@@ -120,3 +120,78 @@ def get_categories():
         return None
     finally:
         conn.close()
+
+def get_all_users():
+    conn = get_db_connection()
+    if not conn:
+        return None
+    try:
+        users = conn.execute("SELECT user_id, username FROM user ORDER BY username").fetchall()
+        return [dict(row) for row in users]
+    except sqlite3.Error as e:
+        print(f"Error fetching users: {e}")
+        return None
+    finally:
+        conn.close()
+
+def record_download(app_id, user_id):
+    conn = get_db_connection()
+    if not conn:
+        return False
+    
+    try:
+        # 1. Insert into user_apps (ignore if already exists)
+        conn.execute("INSERT OR IGNORE INTO user_apps (app_id, user_id) VALUES (?, ?)", (app_id, user_id))
+        
+        # 2. Update app download count
+        conn.execute("""
+            UPDATE app 
+            SET downloads = (SELECT COUNT(*) FROM user_apps WHERE app_id = ?)
+            WHERE app_id = ?
+        """, (app_id, app_id))
+
+        # 3. Update user.app_ids cache
+        cursor = conn.cursor()
+        cursor.execute("SELECT app_id FROM user_apps WHERE user_id = ?", (user_id,))
+        app_ids = [row[0] for row in cursor.fetchall()]
+        conn.execute("UPDATE user SET app_ids = ? WHERE user_id = ?", (json.dumps(app_ids), user_id))
+
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Error recording download: {e}")
+        return False
+    finally:
+        conn.close()
+
+def add_comment(app_id, user_id, stars, comment_text):
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        cursor = conn.cursor()
+        # 1. Insert comment
+        cursor.execute(
+            "INSERT INTO comments (app_id, user_id, stars, comment) VALUES (?, ?, ?, ?)",
+            (app_id, user_id, stars, comment_text)
+        )
+        new_comment_id = cursor.lastrowid
+
+        # 2. Update app_page.comment_ids cache
+        cursor.execute("SELECT comment_id FROM comments WHERE app_id = ?", (app_id,))
+        app_comment_ids = [row[0] for row in cursor.fetchall()]
+        conn.execute("UPDATE app_page SET comment_ids = ? WHERE app_id = ?", (json.dumps(app_comment_ids), app_id))
+
+        # 3. Update user.comment_ids cache
+        cursor.execute("SELECT comment_id FROM comments WHERE user_id = ?", (user_id,))
+        user_comment_ids = [row[0] for row in cursor.fetchall()]
+        conn.execute("UPDATE user SET comment_ids = ? WHERE user_id = ?", (json.dumps(user_comment_ids), user_id))
+
+        conn.commit()
+        return new_comment_id
+    except sqlite3.Error as e:
+        print(f"Error adding comment: {e}")
+        return None
+    finally:
+        conn.close()
