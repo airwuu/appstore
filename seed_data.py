@@ -6,7 +6,11 @@ import string
 from datetime import datetime, timedelta
 
 DB_NAME = "app_data.db"
+def adapt_datetime_iso(val):
+    """Adapt datetime.datetime objects to ISO 8601 date strings."""
+    return val.isoformat().encode('utf-8')
 
+sqlite3.register_adapter(datetime, adapt_datetime_iso)
 # --- Helpers for Random Data ---
 
 def random_string(length=8):
@@ -43,6 +47,10 @@ def seed_database(num_users=10, num_apps=5):
     
     cursor.executemany("INSERT INTO user (username, creation_date) VALUES (?, ?)", new_users)
     print(f" - Added {len(new_users)} new users.")
+    
+    # Fetch all user IDs (including new ones) to assign as developers
+    cursor.execute("SELECT user_id FROM user")
+    all_user_ids = [row[0] for row in cursor.fetchall()]
 
     # 2. Create Apps & App Pages (One by one to safely get IDs)
     # We switched from executemany to a loop to ensure we get valid lastrowid
@@ -53,8 +61,9 @@ def seed_database(num_users=10, num_apps=5):
         name = get_random_app_name()
         icon = f"{name.lower().replace(' ', '_')}_icon.png"
         price = random.choice([0.0, 0.99, 1.99, 4.99, 9.99])
+        developer_id = random.choice(all_user_ids) if all_user_ids else None
         
-        cursor.execute("INSERT INTO app (app_name, icon, price) VALUES (?, ?, ?)", (name, icon, price))
+        cursor.execute("INSERT INTO app (app_name, icon, price, developer_id) VALUES (?, ?, ?, ?)", (name, icon, price, developer_id))
         new_app_id = cursor.lastrowid # Guaranteed to work with single execute
         new_app_ids.append(new_app_id)
         
@@ -126,7 +135,36 @@ def seed_database(num_users=10, num_apps=5):
             text = f"Review from {uid}: {random_string(15)}"
             if db_utils.add_comment(aid, uid, stars, text):
                 count_comments += 1
+                count_comments += 1
         print(f" - Added {count_comments} comments.")
+
+        # Random Comment Reporting
+        # Need to fetch comment IDs first
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT comment_id FROM comments")
+        all_comment_ids = [row[0] for row in cursor.fetchall()]
+        conn.close()
+
+        if all_comment_ids:
+            num_reports = int(len(all_comment_ids) * 0.2)
+            count_reports = 0
+            for _ in range(num_reports):
+               cid = random.choice(all_comment_ids)
+               reasons = ["Spam", "Offensive", "Not helpful", "Fake review"]
+               if db_utils.add_report(cid, random.choice(reasons)):
+                   count_reports += 1
+            print(f" - Added {count_reports} comment reports.")
+
+        # Random App Reporting
+        num_app_reports = int(len(all_app_ids) * 0.1)
+        count_app_reports = 0
+        for _ in range(num_app_reports):
+            aid = random.choice(all_app_ids)
+            reasons = ["Copyright infringement", "Malware", "Inappropriate content", "Scam"]
+            if db_utils.add_app_report(aid, random.choice(reasons)):
+                count_app_reports += 1
+        print(f" - Added {count_app_reports} app reports.")
 
     print("Done!")
 
