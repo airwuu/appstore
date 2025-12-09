@@ -395,3 +395,112 @@ def delete_comment(comment_id, user_id):
         return False
     finally:
         conn.close()
+
+# --- Reporting System ---
+
+def add_report(comment_id, reason):
+    conn = get_db_connection()
+    if not conn:
+        return False
+        
+    try:
+        cursor = conn.cursor()
+        # Get comment details to find the author (reported_user)
+        cursor.execute("SELECT user_id, app_id FROM comments WHERE comment_id = ?", (comment_id,))
+        row = cursor.fetchone()
+        if not row:
+            return False # Comment not found
+            
+        reported_user_id = row['user_id']
+        # We don't necessarily associate with app_id in the reports table for user reports, 
+        # but the schema has reported_app_id. For comment reports, it's primarily about the user and comment.
+        # Let's verify schema usage. 
+        # The schema has reported_app_id, reported_user_id, reported_comment_id.
+        # For a comment report, we should set reported_user_id (author) and reported_comment_id.
+        
+        cursor.execute("""
+            INSERT INTO reports (reported_user_id, reported_comment_id, comment)
+            VALUES (?, ?, ?)
+        """, (reported_user_id, comment_id, reason))
+        
+        # Update user_reports cache
+        report_id = cursor.lastrowid
+        
+        cursor.execute("SELECT report_ids FROM user_reports WHERE user_id = ?", (reported_user_id,))
+        row = cursor.fetchone()
+        if row and row['report_ids']:
+            ids = json.loads(row['report_ids'])
+        else:
+            ids = []
+        ids.append(report_id)
+        
+        cursor.execute("""
+            INSERT OR REPLACE INTO user_reports (user_id, report_ids)
+            VALUES (?, ?)
+        """, (reported_user_id, json.dumps(ids)))
+        
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Error adding report: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_reported_users():
+    conn = get_db_connection()
+    if not conn:
+        return None
+        
+    try:
+        # Return users with reports, sorted by number of reports
+        sql = """
+            SELECT u.user_id, u.username, ur.report_ids
+            FROM user u
+            JOIN user_reports ur ON u.user_id = ur.user_id
+        """
+        rows = conn.execute(sql).fetchall()
+        
+        result = []
+        for row in rows:
+            data = dict(row)
+            try:
+                report_ids = json.loads(data['report_ids'])
+            except:
+                report_ids = []
+            
+            data['report_count'] = len(report_ids)
+            result.append(data)
+            
+        # Sort by count desc
+        result.sort(key=lambda x: x['report_count'], reverse=True)
+        return result
+    except sqlite3.Error as e:
+        print(f"Error fetching reported users: {e}")
+        return None
+    finally:
+        conn.close()
+
+def get_user_reports(user_id):
+    conn = get_db_connection()
+    if not conn:
+        return None
+        
+    try:
+        # Get reports for this user
+        # We want to show: Report ID, Reason (comment), Flagged Comment Content, Flagged Comment Date
+        sql = """
+            SELECT r.report_id, r.comment as report_reason, r.created_at as report_date,
+                   c.comment as flagged_content, c.date as flagged_date, c.stars
+            FROM reports r
+            LEFT JOIN comments c ON r.reported_comment_id = c.comment_id
+            WHERE r.reported_user_id = ?
+            ORDER BY r.created_at DESC
+        """
+        rows = conn.execute(sql, (user_id,)).fetchall()
+        return [dict(row) for row in rows]
+    except sqlite3.Error as e:
+        print(f"Error fetching user reports: {e}")
+        return None
+    finally:
+        conn.close()

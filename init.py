@@ -72,10 +72,12 @@ def get_schema():
         report_id INTEGER PRIMARY KEY AUTOINCREMENT,
         reported_app_id INTEGER,
         reported_user_id INTEGER,
+        reported_comment_id INTEGER,
         comment TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (reported_app_id) REFERENCES app(app_id) ON DELETE SET NULL,
-        FOREIGN KEY (reported_user_id) REFERENCES user(user_id) ON DELETE SET NULL
+        FOREIGN KEY (reported_user_id) REFERENCES user(user_id) ON DELETE SET NULL,
+        FOREIGN KEY (reported_comment_id) REFERENCES comments(comment_id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS user_reports (
@@ -172,10 +174,10 @@ def populate_data(cursor):
 
     # 8. Reports
     reports = [
-        (2, 1, "App crashes on load"), # User 1 reports App 2
-        (None, 3, "User is spamming comments") # Report against User 3
+        (2, 1, None, "App crashes on load"), # User 1 reports App 2
+        (None, 3, None, "User is spamming comments") # Report against User 3
     ]
-    cursor.executemany("INSERT INTO reports (reported_app_id, reported_user_id, comment) VALUES (?, ?, ?)", reports)
+    cursor.executemany("INSERT INTO reports (reported_app_id, reported_user_id, reported_comment_id, comment) VALUES (?, ?, ?, ?)", reports)
 
     # --- UPDATE CACHE FIELDS (The Complex Part) ---
     print("Updating JSON cache fields...")
