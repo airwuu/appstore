@@ -14,6 +14,7 @@ export interface AppDetails extends App {
     last_update: string;
     tags: string[];
     comments: Comment[];
+    developer_name?: string;
 }
 
 export interface Comment {

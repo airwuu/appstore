@@ -23,7 +23,9 @@ def get_schema():
         icon TEXT,
         price REAL DEFAULT 0.0,
         rating REAL DEFAULT 0.0,
-        downloads INTEGER DEFAULT 0
+        downloads INTEGER DEFAULT 0,
+        developer_id INTEGER,
+        FOREIGN KEY (developer_id) REFERENCES user(user_id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS user_apps (
@@ -114,7 +116,14 @@ def populate_data(cursor):
         ("Photo Pro", "lens.png", 2.99),
         ("Budget Buddy", "money.png", 0.0)
     ]
-    cursor.executemany("INSERT INTO app (app_name, icon, price) VALUES (?, ?, ?)", apps)
+    apps = [
+        ("Super Tasker", "task_icon.png", 0.0, 3), # Charlie Code
+        ("Mega Game", "game_icon.png", 4.99, 3), 
+        ("Health Tracker", "health.png", 0.0, 4), # Diana Design
+        ("Photo Pro", "lens.png", 2.99, 4),
+        ("Budget Buddy", "money.png", 0.0, 5) # Evan Engineer
+    ]
+    cursor.executemany("INSERT INTO app (app_name, icon, price, developer_id) VALUES (?, ?, ?, ?)", apps)
     print(f"Inserted {len(apps)} apps.")
 
     # 3. Create Tags

@@ -1,5 +1,6 @@
 import sqlite3
 import json
+from datetime import datetime
 
 DB_NAME = "app_data.db"
 
@@ -93,8 +94,13 @@ def get_app_details(app_id):
         return None
     
     try:
-        # Fetch basic app info
-        app_query = "SELECT * FROM app WHERE app_id = ?"
+        # Fetch app info with developer name
+        app_query = """
+            SELECT a.*, u.username as developer_name 
+            FROM app a
+            LEFT JOIN user u ON a.developer_id = u.user_id
+            WHERE a.app_id = ?
+        """
         app = conn.execute(app_query, (app_id,)).fetchone()
         
         if not app:
@@ -501,6 +507,135 @@ def get_user_reports(user_id):
         return [dict(row) for row in rows]
     except sqlite3.Error as e:
         print(f"Error fetching user reports: {e}")
+        return None
+    finally:
+        conn.close()
+
+def add_app_report(app_id, reason):
+    conn = get_db_connection()
+    if not conn:
+        return False
+        
+    try:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO reports (reported_app_id, comment)
+            VALUES (?, ?)
+        """, (app_id, reason))
+        report_id = cursor.lastrowid
+        
+        # Update app_reports cache
+        cursor.execute("SELECT report_ids FROM app_reports WHERE app_id = ?", (app_id,))
+        row = cursor.fetchone()
+        if row and row['report_ids']:
+            ids = json.loads(row['report_ids'])
+        else:
+            ids = []
+        ids.append(report_id)
+        
+        cursor.execute("""
+            INSERT OR REPLACE INTO app_reports (app_id, report_ids)
+            VALUES (?, ?)
+        """, (app_id, json.dumps(ids)))
+        
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Error adding app report: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_reported_apps():
+    conn = get_db_connection()
+    if not conn:
+        return None
+        
+    try:
+        # Return apps with reports, sorted by number of reports
+        sql = """
+            SELECT a.app_id, a.app_name, a.icon, ar.report_ids, u.username as developer_name
+            FROM app a
+            JOIN app_reports ar ON a.app_id = ar.app_id
+            LEFT JOIN user u ON a.developer_id = u.user_id
+        """
+        rows = conn.execute(sql).fetchall()
+        
+        result = []
+        for row in rows:
+            data = dict(row)
+            try:
+                report_ids = json.loads(data['report_ids'])
+            except:
+                report_ids = []
+            
+            data['report_count'] = len(report_ids)
+            result.append(data)
+            
+        # Sort by count desc
+        result.sort(key=lambda x: x['report_count'], reverse=True)
+        return result
+    except sqlite3.Error as e:
+        print(f"Error fetching reported apps: {e}")
+        return None
+    finally:
+        conn.close()
+
+def get_app_reports(app_id):
+    conn = get_db_connection()
+    if not conn:
+        return None
+        
+    try:
+        sql = """
+            SELECT r.report_id, r.comment as report_reason, r.created_at as report_date
+            FROM reports r
+            WHERE r.reported_app_id = ?
+            ORDER BY r.created_at DESC
+        """
+        rows = conn.execute(sql, (app_id,)).fetchall()
+        return [dict(row) for row in rows]
+    except sqlite3.Error as e:
+        print(f"Error fetching app reports: {e}")
+        return None
+    finally:
+        conn.close()
+
+# --- Admin Tools ---
+
+def add_app(name, price, description, category_tag, icon_url, images, developer_id=None):
+    conn = get_db_connection()
+    if not conn:
+        return None
+        
+    try:
+        cursor = conn.cursor()
+        
+        # 1. Insert App
+        cursor.execute("""
+            INSERT INTO app (app_name, icon, price, developer_id) VALUES (?, ?, ?, ?)
+        """, (name, icon_url, price, developer_id))
+        app_id = cursor.lastrowid
+        
+        # 2. Insert App Page
+        cursor.execute("""
+            INSERT INTO app_page (app_id, description, images, last_update)
+            VALUES (?, ?, ?, ?)
+        """, (app_id, description, json.dumps(images), datetime.now()))
+        
+        # 3. Insert Tag
+        cursor.execute("""
+            INSERT OR IGNORE INTO app_tags (app_id, tag_id) VALUES (?, ?)
+        """, (app_id, category_tag))
+        
+        # Update tag amount
+        cursor.execute("UPDATE tags SET amount = amount + 1 WHERE tag_id = ?", (category_tag,))
+        
+        conn.commit()
+        return app_id
+    except sqlite3.Error as e:
+        print(f"Error adding app: {e}")
         return None
     finally:
         conn.close()
