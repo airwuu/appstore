@@ -9,6 +9,7 @@ const CATEGORY_MAP: Record<string, string> = {
     play: 'game',
     work: 'productivity',
     arcade: 'game',
+    create: 'photography',
     // Add more mappings if needed, or use the param directly if no mapping exists
 };
 
