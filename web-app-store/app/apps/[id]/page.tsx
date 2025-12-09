@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import DownloadButton from '@/components/AppActions';
 import ReviewSection from '@/components/ReviewSection';
 import ReviewList from '@/components/ReviewList';
+import ReportAppButton from '@/components/ReportAppButton';
 
 async function getAppDetails(id: string): Promise<AppDetails | null> {
     const res = await fetch(`http://localhost:5000/api/apps/${id}`, { cache: 'no-store' });
@@ -53,7 +54,7 @@ export default async function AppDetailsPage({ params }: { params: Promise<{ id:
                 </div>
                 <div className="text-center">
                     <div className="text-gray-400 font-medium text-xs uppercase tracking-wide mb-1">Developer</div>
-                    <div className="text-2xl font-bold text-gray-900 truncate px-2">Tech Corp</div>
+                    <div className="text-2xl font-bold text-gray-900 truncate px-2">{app.developer_name || "Unknown"}</div>
                 </div>
             </div>
 
@@ -65,6 +66,7 @@ export default async function AppDetailsPage({ params }: { params: Promise<{ id:
                 <p className="text-gray-700 leading-relaxed text-lg">
                     {app.description || "No description available."}
                 </p>
+                <ReportAppButton appId={app.app_id} />
             </div>
 
             {/* Comments */}

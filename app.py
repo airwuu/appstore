@@ -160,5 +160,82 @@ def manage_comment(comment_id):
         else:
              return jsonify({"error": "Failed to delete comment"}), 403
 
+@app.route('/api/comments/<int:comment_id>/report', methods=['POST'])
+def report_comment(comment_id):
+    data = request.json
+    reason = data.get('reason')
+    
+    if not reason:
+        return jsonify({"error": "Reason required"}), 400
+        
+    success = db_utils.add_report(comment_id, reason)
+    if success:
+        return jsonify({"message": "Comment reported"})
+    else:
+        return jsonify({"error": "Failed to report comment"}), 500
+
+@app.route('/api/admin/reported_users', methods=['GET'])
+def get_reported_users():
+    # In a real app, we would verify admin headers/tokens here
+    users = db_utils.get_reported_users()
+    if users is None:
+        return jsonify({"error": "Database error"}), 500
+    return jsonify(users)
+
+@app.route('/api/admin/users/<int:user_id>/reports', methods=['GET'])
+def get_user_reports_api(user_id):
+    reports = db_utils.get_user_reports(user_id)
+    if reports is None:
+        return jsonify({"error": "Database error"}), 500
+    return jsonify(reports)
+
+@app.route('/api/apps/<int:app_id>/report', methods=['POST'])
+def report_app(app_id):
+    data = request.json
+    reason = data.get('reason')
+    
+    if not reason:
+        return jsonify({"error": "Missing reason"}), 400
+        
+    if db_utils.add_app_report(app_id, reason):
+        return jsonify({"message": "App reported"})
+    else:
+        return jsonify({"error": "Failed to report app"}), 500
+
+@app.route('/api/admin/reported_apps', methods=['GET'])
+def get_reported_apps():
+    apps = db_utils.get_reported_apps()
+    if apps is None:
+        return jsonify({"error": "Database error"}), 500
+    return jsonify(apps)
+
+@app.route('/api/admin/apps/<int:app_id>/reports', methods=['GET'])
+def get_app_reports(app_id):
+    reports = db_utils.get_app_reports(app_id)
+    if reports is None:
+        return jsonify({"error": "Database error"}), 500
+    return jsonify(reports)
+
+@app.route('/api/apps', methods=['POST'])
+def create_app():
+    data = request.json
+    name = data.get('name')
+    price = data.get('price')
+    description = data.get('description')
+    category = data.get('category')
+    icon = data.get('icon')
+    images = data.get('images', [])
+    developer_id = data.get('developer_id')
+    
+    if not all([name, description, category]):
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    app_id = db_utils.add_app(name, price or 0.0, description, category, icon, images, developer_id)
+    
+    if app_id:
+        return jsonify({"message": "App created", "app_id": app_id})
+    else:
+        return jsonify({"error": "Failed to create app"}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

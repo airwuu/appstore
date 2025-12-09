@@ -74,6 +74,27 @@ export default function ReviewList({ initialComments }: { initialComments: Comme
         }
     };
 
+    const reportComment = async (commentId: number) => {
+        const reason = prompt("Why do you want to report this comment?");
+        if (!reason) return;
+
+        try {
+            const res = await fetch(`http://localhost:5000/api/comments/${commentId}/report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason })
+            });
+            if (res.ok) {
+                alert("Comment reported. Thank you for your feedback.");
+            } else {
+                alert("Failed to report comment.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error reporting comment");
+        }
+    };
+
     // Use initialComments unless we want to fetch? Router refresh will update the prop passed from server component
     // BUT React might not reconcile if we just use props. 
     // Actually, when router.refresh() happens, the Server Component re-renders and passes new initialComments.
@@ -126,10 +147,16 @@ export default function ReviewList({ initialComments }: { initialComments: Comme
                                             <span className="text-gray-300">{"★".repeat(5 - Math.round(c.stars))}</span>
                                         </div>
                                     </div>
-                                    {user && user.user_id === c.user_id && (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => startEdit(c)} className="text-xs text-blue-600 hover:underline">Edit</button>
-                                            <button onClick={() => deleteComment(c.comment_id)} className="text-xs text-red-600 hover:underline">Delete</button>
+                                    {user && (
+                                        <div className="flex gap-2 text-xs">
+                                            {user.user_id === c.user_id ? (
+                                                <>
+                                                    <button onClick={() => startEdit(c)} className="text-blue-600 hover:underline">Edit</button>
+                                                    <button onClick={() => deleteComment(c.comment_id)} className="text-red-600 hover:underline">Delete</button>
+                                                </>
+                                            ) : (
+                                                <button onClick={() => reportComment(c.comment_id)} className="text-gray-400 hover:text-red-600 hover:underline">Report</button>
+                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -23,7 +23,9 @@ def get_schema():
         icon TEXT,
         price REAL DEFAULT 0.0,
         rating REAL DEFAULT 0.0,
-        downloads INTEGER DEFAULT 0
+        downloads INTEGER DEFAULT 0,
+        developer_id INTEGER,
+        FOREIGN KEY (developer_id) REFERENCES user(user_id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS user_apps (
@@ -72,10 +74,12 @@ def get_schema():
         report_id INTEGER PRIMARY KEY AUTOINCREMENT,
         reported_app_id INTEGER,
         reported_user_id INTEGER,
+        reported_comment_id INTEGER,
         comment TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (reported_app_id) REFERENCES app(app_id) ON DELETE SET NULL,
-        FOREIGN KEY (reported_user_id) REFERENCES user(user_id) ON DELETE SET NULL
+        FOREIGN KEY (reported_user_id) REFERENCES user(user_id) ON DELETE SET NULL,
+        FOREIGN KEY (reported_comment_id) REFERENCES comments(comment_id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS user_reports (
@@ -112,7 +116,14 @@ def populate_data(cursor):
         ("Photo Pro", "lens.png", 2.99),
         ("Budget Buddy", "money.png", 0.0)
     ]
-    cursor.executemany("INSERT INTO app (app_name, icon, price) VALUES (?, ?, ?)", apps)
+    apps = [
+        ("Super Tasker", "task_icon.png", 0.0, 3), # Charlie Code
+        ("Mega Game", "game_icon.png", 4.99, 3), 
+        ("Health Tracker", "health.png", 0.0, 4), # Diana Design
+        ("Photo Pro", "lens.png", 2.99, 4),
+        ("Budget Buddy", "money.png", 0.0, 5) # Evan Engineer
+    ]
+    cursor.executemany("INSERT INTO app (app_name, icon, price, developer_id) VALUES (?, ?, ?, ?)", apps)
     print(f"Inserted {len(apps)} apps.")
 
     # 3. Create Tags
@@ -172,10 +183,10 @@ def populate_data(cursor):
 
     # 8. Reports
     reports = [
-        (2, 1, "App crashes on load"), # User 1 reports App 2
-        (None, 3, "User is spamming comments") # Report against User 3
+        (2, 1, None, "App crashes on load"), # User 1 reports App 2
+        (None, 3, None, "User is spamming comments") # Report against User 3
     ]
-    cursor.executemany("INSERT INTO reports (reported_app_id, reported_user_id, comment) VALUES (?, ?, ?)", reports)
+    cursor.executemany("INSERT INTO reports (reported_app_id, reported_user_id, reported_comment_id, comment) VALUES (?, ?, ?, ?)", reports)
 
     # --- UPDATE CACHE FIELDS (The Complex Part) ---
     print("Updating JSON cache fields...")

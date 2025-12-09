@@ -35,6 +35,9 @@ export default function Navbar() {
                             <Link href="/create" className="hover:text-blue-600 transition-colors">Create</Link>
                             <Link href="/work" className="hover:text-blue-600 transition-colors">Work</Link>
                             {/* <Link href="/play" className="hover:text-blue-600 transition-colors">Play</Link> */}
+                            {user && user.username === 'evan_engineer' && (
+                                <Link href="/dashboard" className="text-red-500 hover:text-red-700 transition-colors font-bold">Dashboard</Link>
+                            )}
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
