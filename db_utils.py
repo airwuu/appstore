@@ -219,6 +219,13 @@ def add_comment(app_id, user_id, stars, comment_text):
         user_comment_ids = [row[0] for row in cursor.fetchall()]
         conn.execute("UPDATE user SET comment_ids = ? WHERE user_id = ?", (json.dumps(user_comment_ids), user_id))
 
+        # 4. Update app rating
+        conn.execute("""
+            UPDATE app 
+            SET rating = COALESCE((SELECT AVG(stars) FROM comments WHERE app_id = ?), 0)
+            WHERE app_id = ?
+        """, (app_id, app_id))
+
         conn.commit()
         return new_comment_id
     except sqlite3.Error as e:
@@ -234,16 +241,26 @@ def update_comment(comment_id, user_id, stars, comment_text):
     
     try:
         cursor = conn.cursor()
-        # Verify ownership
-        cursor.execute("SELECT user_id FROM comments WHERE comment_id = ?", (comment_id,))
+        # Verify ownership and get app_id
+        cursor.execute("SELECT user_id, app_id FROM comments WHERE comment_id = ?", (comment_id,))
         row = cursor.fetchone()
         if not row or row['user_id'] != user_id:
             return False # Not found or not owner
+            
+        app_id = row['app_id']
 
         cursor.execute(
             "UPDATE comments SET stars = ?, comment = ? WHERE comment_id = ?",
             (stars, comment_text, comment_id)
         )
+
+        # Update app rating
+        conn.execute("""
+            UPDATE app 
+            SET rating = COALESCE((SELECT AVG(stars) FROM comments WHERE app_id = ?), 0)
+            WHERE app_id = ?
+        """, (app_id, app_id))
+
         conn.commit()
         return True
     except sqlite3.Error as e:
@@ -280,6 +297,13 @@ def delete_comment(comment_id, user_id):
         cursor.execute("SELECT comment_id FROM comments WHERE user_id = ?", (user_id,))
         user_comment_ids = [r[0] for r in cursor.fetchall()]
         conn.execute("UPDATE user SET comment_ids = ? WHERE user_id = ?", (json.dumps(user_comment_ids), user_id))
+
+        # 3. Update app rating
+        conn.execute("""
+            UPDATE app 
+            SET rating = COALESCE((SELECT AVG(stars) FROM comments WHERE app_id = ?), 0)
+            WHERE app_id = ?
+        """, (app_id, app_id))
 
         conn.commit()
         return True
