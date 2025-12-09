@@ -32,8 +32,13 @@ def health_check():
 def get_apps():
     limit = request.args.get('limit', default=20, type=int)
     offset = request.args.get('offset', default=0, type=int)
+    category = request.args.get('category')
     
-    apps = db_utils.get_all_apps(limit, offset)
+    if category:
+        apps = db_utils.get_apps_by_category(category, limit, offset)
+    else:
+        apps = db_utils.get_all_apps(limit, offset)
+        
     if apps is None:
         return jsonify({"error": "Database error"}), 500
     

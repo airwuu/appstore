@@ -30,6 +30,29 @@ def get_all_apps(limit=20, offset=0):
         print(f"Error fetching apps: {e}")
         return None
     finally:
+
+        conn.close()
+
+def get_apps_by_category(category_tag, limit=20, offset=0):
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        # Join app with app_tags to filter
+        query = """
+            SELECT a.* 
+            FROM app a
+            JOIN app_tags at ON a.app_id = at.app_id
+            WHERE at.tag_id = ?
+            LIMIT ? OFFSET ?
+        """
+        apps = conn.execute(query, (category_tag, limit, offset)).fetchall()
+        return [dict(row) for row in apps]
+    except sqlite3.Error as e:
+        print(f"Error fetching apps by category: {e}")
+        return None
+    finally:
         conn.close()
 
 def get_app_details(app_id):
